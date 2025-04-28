@@ -1,0 +1,15 @@
+../Core/Src/main.c:70:13:UART_Print	16	static
+../Core/Src/main.c:75:16:mounSDtFile	24	static
+../Core/Src/main.c:90:16:unmountSDFile	16	static
+../Core/Src/main.c:105:16:writeSDFILE	4368	static
+../Core/Src/main.c:137:16:readSDFILE	4368	static
+../Core/Src/main.c:169:13:SD_Card_Test	4168	static
+../Core/Src/main.c:207:13:writeLog	8504	static
+../Core/Src/main.c:226:5:main	208	static
+../Core/Src/main.c:278:6:SystemClock_Config	88	static
+../Core/Src/main.c:325:13:MX_SPI1_Init	8	static
+../Core/Src/main.c:363:13:MX_USART2_UART_Init	8	static
+../Core/Src/main.c:396:13:MX_USART3_UART_Init	8	static
+../Core/Src/main.c:429:13:MX_USB_OTG_FS_PCD_Init	8	static
+../Core/Src/main.c:465:13:MX_GPIO_Init	56	static
+../Core/Src/main.c:533:6:Error_Handler	4	static,ignoring_inline_asm
