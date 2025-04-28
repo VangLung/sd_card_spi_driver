@@ -22,7 +22,7 @@
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
-
+#include "time.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -163,7 +163,14 @@ static FRESULT readSDFILE(const char *filename)
     return FR_OK;
 }
 
+static void generate_filename(char *filename, size_t max_len)
+{
+    time_t now = time(NULL);
+    struct tm *t = localtime(&now);
 
+    snprintf(filename, max_len, "log_%02d_%02d_%04d_%02d_%02d.txt",
+             t->tm_mday, t->tm_mon + 1, t->tm_year + 1900, t->tm_hour, t->tm_min);
+}
 
 
 static void SD_Card_Test(void)
@@ -171,36 +178,29 @@ static void SD_Card_Test(void)
     FATFS FatFs;
     FRESULT FR_Status;
 
-    // Mountuj SD karticu
+    char filename[50];
+
+    generate_filename(filename, sizeof(filename));
+
     FR_Status = mounSDtFile(&FatFs);
     if (FR_Status != FR_OK)
-    {
-        return; // Ako mount ne uspe, prekini
-    }
+        return;
 
-    // Pisi u fajl 500 puta
     for (int i = 0; i < 500; i++)
     {
-        FR_Status = writeSDFILE("tocak124.txt");
+        FR_Status = writeSDFILE(filename);
         if (FR_Status != FR_OK)
-        {
-            return; // Ako pisanje ne uspe, prekini
-        }
+            return;
     }
 
-    // Citanje fajla
-    FR_Status = readSDFILE("tocak124.txt");
+    FR_Status = readSDFILE(filename);
     if (FR_Status != FR_OK)
-    {
-        return; // Ako čitanje ne uspe, prekini
-    }
+        return;
 
-    // Unmountuj SD karticu
     FR_Status = unmountSDFile();
     if (FR_Status != FR_OK)
-    {
-        return; // Ako unmount ne uspe, prekini
-    }
+        return;
+
 }
 
 
@@ -340,7 +340,7 @@ static void MX_SPI1_Init(void)
   hspi1.Init.CLKPolarity = SPI_POLARITY_LOW;
   hspi1.Init.CLKPhase = SPI_PHASE_1EDGE;
   hspi1.Init.NSS = SPI_NSS_SOFT;
-  hspi1.Init.BaudRatePrescaler = SPI_BAUDRATEPRESCALER_16;
+  hspi1.Init.BaudRatePrescaler = SPI_BAUDRATEPRESCALER_2;
   hspi1.Init.FirstBit = SPI_FIRSTBIT_MSB;
   hspi1.Init.TIMode = SPI_TIMODE_DISABLE;
   hspi1.Init.CRCCalculation = SPI_CRCCALCULATION_DISABLE;
