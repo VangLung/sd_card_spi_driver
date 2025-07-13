@@ -1,12 +1,3 @@
-/*
- * File: FATFS_SD.c
- * Driver Name: [[ FATFS_SD SPI ]]
- * SW Layer:   MIDWARE
- * Author:     Khaled Magdy
- * -------------------------------------------
- * For More Information, Tutorials, etc.
- * Visit Website: www.DeepBlueMbedded.com
- */
 #include "main.h"
 #include "diskio.h"
 #include "FATFS_SD.h"
@@ -35,14 +26,17 @@ static void DESELECT(void)
   HAL_GPIO_WritePin(SD_CS_PORT, SD_CS_PIN, GPIO_PIN_SET);
 }
 
-/* SPI transmit a byte */
+/* Transmit 1 byte of data */
 static void SPI_TxByte(uint8_t data)
 {
-  while(!__HAL_SPI_GET_FLAG(HSPI_SDCARD, SPI_FLAG_TXE));
+  while(!__HAL_SPI_GET_FLAG(HSPI_SDCARD, SPI_FLAG_TXE)){
+	//wait for buffer to be empty
+  }
   HAL_SPI_Transmit(HSPI_SDCARD, &data, 1, SPI_TIMEOUT);
+  //transmit 1 byte
 }
 
-/* SPI transmit buffer */
+/* SPI transmit buffer of data */
 static void SPI_TxBuffer(uint8_t *buffer, uint16_t len)
 {
   while(!__HAL_SPI_GET_FLAG(HSPI_SDCARD, SPI_FLAG_TXE));
@@ -52,10 +46,15 @@ static void SPI_TxBuffer(uint8_t *buffer, uint16_t len)
 /* SPI receive a byte */
 static uint8_t SPI_RxByte(void)
 {
-  uint8_t dummy, data;
-  dummy = 0xFF;
-  while(!__HAL_SPI_GET_FLAG(HSPI_SDCARD, SPI_FLAG_TXE));
-  HAL_SPI_TransmitReceive(HSPI_SDCARD, &dummy, &data, 1, SPI_TIMEOUT);
+  uint8_t dummy = 0xFF;
+  uint8_t data;
+
+  if(HAL_SPI_Transmit(HSPI_SDCARD, &dummy, 1, HAL_MAX_DELAY) != HAL_OK)
+    return 0xFF;
+
+  if(HAL_SPI_Receive(HSPI_SDCARD, &data, 1, HAL_MAX_DELAY) != HAL_OK)
+    return 0xFF;
+
   return data;
 }
 
@@ -67,16 +66,20 @@ static void SPI_RxBytePtr(uint8_t *buff)
 
 //-----[ SD Card Functions ]-----
 
-/* wait SD ready */
+/* busy wait sd ready */
 static uint8_t SD_ReadyWait(void)
 {
-  uint8_t res;
-  /* timeout 500ms */
+  uint8_t res = 0;
+
   Timer2 = 500;
-  /* if SD goes ready, receives 0xFF */
-  do {
+
+  while (Timer2)
+  {
     res = SPI_RxByte();
-  } while ((res != 0xFF) && Timer2);
+    if (res == 0xFF)
+      break;
+  }
+
   return res;
 }
 
@@ -123,25 +126,32 @@ static uint8_t SD_CheckPower(void)
   return PowerFlag;
 }
 
+void discardCRC()
+{
+	  SPI_RxByte();
+	  SPI_RxByte();
+}
 /* receive data block */
 static bool SD_RxDataBlock(BYTE *buff, UINT len)
 {
   uint8_t token;
   /* timeout 200ms */
   Timer1 = 200;
-  /* loop until receive a response or timeout */
-  do {
-    token = SPI_RxByte();
-  } while((token == 0xFF) && Timer1);
+
+  /* wait for response or timeout */
+  while((token = SPI_RxByte()) == 0xFF && Timer1);
+
   /* invalid response */
   if(token != 0xFE) return FALSE;
+
   /* receive data */
-  do {
+  while(len--) {
     SPI_RxBytePtr(buff++);
-  } while(len--);
+  }
+
   /* discard CRC */
-  SPI_RxByte();
-  SPI_RxByte();
+  discardCRC();
+
   return TRUE;
 }
 
@@ -160,8 +170,7 @@ static bool SD_TxDataBlock(const uint8_t *buff, BYTE token)
   {
     SPI_TxBuffer((uint8_t*)buff, 512);
     /* discard CRC */
-    SPI_RxByte();
-    SPI_RxByte();
+    discardCRC();
     /* receive response */
     while (i <= 64)
     {
@@ -230,7 +239,6 @@ DSTATUS SD_disk_initialize(BYTE drv)
   {
     /* timeout 1 sec */
     Timer1 = 1000;
-    /* SDC V2+ accept CMD8 command, http://elm-chan.org/docs/mmc/mmc_e.html */
     if (SD_SendCmd(CMD8, 0x1AA) == 1)
     {
       /* operation condition register */
